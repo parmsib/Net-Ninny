@@ -10,20 +10,39 @@
 
 #include <arpa/inet.h>
 
-#define PORT "3490" // Port to connect to
+#include "client.h"
 
-#define MAXDATASIZE 100
+#include "util.h"
 
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
-  if (sa->sa_family == AF_INET){
-    return &(((struct sockaddr_in*)sa)->sin_addr);
-  }
-  return &(((struct sockaddr_in6*)sa)->sin6_addr);
+void client_handle_request(int client_fd){
+    //entry point from server
+
+    //some dummy code 
+    char buf[MAXDATASIZE];
+    int numbytes;
+
+    if((numbytes = recv(client_fd, buf, MAXDATASIZE-1,0)) == -1) 
+    {
+
+        perror("recv");
+        exit(1);
+    }
+
+    buf[numbytes] = '\0';
+
+    printf("server: recieved '%s'\n",buf);
+    
+
+    if (send(client_fd, "Hello, world!", 13, 0) == -1)
+        perror("send");
+
+    //end of dummy code
+
+    //TODO: make "main" below into this function
 }
 
-int main (int argc, char *argv[])
+
+int main2 (int argc, char *argv[])
 {
 	printf("Client started\n");
 
