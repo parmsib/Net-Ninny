@@ -2,25 +2,7 @@
 ** server.c -- a stream socket server demo
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/wait.h>
-#include <signal.h>
-
-#define SERVERPORT "8080"  // port proxyserver
-#define CLIENTPORT "80" // Destination port webserver
-
-#define BACKLOG 10     // how many pending connections queue will hold
-
-#define MAXDATASIZE 100
+#include <server.h>
 
 void sigchld_handler(int s)
 {
@@ -41,6 +23,11 @@ void *get_in_addr(struct sockaddr *sa)
     }
 
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+void setup_sockets()
+{
+    
 }
 
 int main(void)
