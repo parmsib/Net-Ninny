@@ -61,14 +61,14 @@ void server_accept_loop(int sockfd){
 
     socklen_t sin_size;
     struct sockaddr_storage their_addr;
-    int client_fd;
+    int browser_fd;
     char s[INET6_ADDRSTRLEN];
 
     while(1) {  // main accept() loop
 
         sin_size = sizeof their_addr;
-        client_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (client_fd == -1) {
+        browser_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        if (browser_fd == -1) {
             perror("accept");
             continue;
         }
@@ -86,14 +86,14 @@ void server_accept_loop(int sockfd){
         if (!fork()) { // this is the child process
             close(sockfd); // child doesn't need the listener
             // handle the request
-            client_handle_request(client_fd);
+            client_handle_request(browser_fd);
             // close the connection to the client
-            close(client_fd);
+            close(browser_fd);
             // kill the thread, since the client has been dealt with
             exit(0);
         }
         // close the client fd, since the parent has no use for it
-        close(client_fd);
+        close(browser_fd);
     }
 }
 
