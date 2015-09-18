@@ -18,9 +18,17 @@
 #include "server.h"
 
 #include "client.h"
-#include "util.h"
+//#include "util.h"
 
-void sigchld_handler(int s)
+// get sockaddr, IPv4 or IPv6:
+void *get_in_addr(struct sockaddr *sa){
+  if (sa->sa_family == AF_INET){
+    return &(((struct sockaddr_in*)sa)->sin_addr);
+  }
+  return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+void sigchld_handler(int shand)
 {
     // waitpid() might overwrite errno, so we save and restore it:
     int saved_errno = errno;
@@ -30,16 +38,6 @@ void sigchld_handler(int s)
     errno = saved_errno;
 }
 
-
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
-
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
 
 void server_init_hints(struct addrinfo* hints){
     memset(hints, 0, sizeof hints);
@@ -60,11 +58,14 @@ void server_handle_signals(void){
 }
 
 void server_accept_loop(int sockfd){
+
     socklen_t sin_size;
     struct sockaddr_storage their_addr;
     int client_fd;
     char s[INET6_ADDRSTRLEN];
+
     while(1) {  // main accept() loop
+
         sin_size = sizeof their_addr;
         client_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
         if (client_fd == -1) {
@@ -72,10 +73,14 @@ void server_accept_loop(int sockfd){
             continue;
         }
 
+        void *temp = get_in_addr((struct sockaddr *)&their_addr);
+
         inet_ntop(their_addr.ss_family,
                 get_in_addr((struct sockaddr *)&their_addr),
                 s, sizeof s);
+
         printf("server: got connection from %s\n", s);
+
 
         // fork to new thread to handle our new client
         if (!fork()) { // this is the child process
@@ -93,7 +98,7 @@ void server_accept_loop(int sockfd){
 }
 
 int server_bind_socket(struct addrinfo* servinfo){
-    int yes = 1; 
+    int yes = 1;
     struct addrinfo* p;
     int sockfd;
     // loop through all the results of servinfo and bind to the first we can

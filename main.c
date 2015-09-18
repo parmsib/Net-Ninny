@@ -35,6 +35,7 @@ int main(void){
     printf("server: waiting for connections...\n");
 
     //accept loop
+
     server_accept_loop(server_sock_fd);
 
     return 0;

@@ -12,16 +12,24 @@
 
 #include "client.h"
 
-#include "util.h"
+//#include "util.h"
+// get sockaddr, IPv4 or IPv6:
+void *get_in_addr2(struct sockaddr *sa){
+  if (sa->sa_family == AF_INET){
+    return &(((struct sockaddr_in*)sa)->sin_addr);
+  }
+  return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
 
 void client_handle_request(int client_fd){
     //entry point from server
 
-    //some dummy code 
+    //some dummy code
     char buf[MAXDATASIZE];
     int numbytes;
 
-    if((numbytes = recv(client_fd, buf, MAXDATASIZE-1,0)) == -1) 
+    if((numbytes = recv(client_fd, buf, MAXDATASIZE-1,0)) == -1)
     {
 
         perror("recv");
@@ -31,7 +39,7 @@ void client_handle_request(int client_fd){
     buf[numbytes] = '\0';
 
     printf("server: recieved '%s'\n",buf);
-    
+
 
     if (send(client_fd, "Hello, world!", 13, 0) == -1)
         perror("send");
@@ -87,9 +95,9 @@ int main2 (int argc, char *argv[])
     return 2;
   }
 
-  inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
+  inet_ntop(p->ai_family, get_in_addr2((struct sockaddr *)p->ai_addr), s, sizeof s);
   printf("client: connecting to %s\n", s);
-  
+
   char HTTP[] = "I'm a client!";
   if (send(servsfd, HTTP, sizeof HTTP, 0) == -1)
     perror("send");

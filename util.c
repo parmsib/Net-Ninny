@@ -1,8 +1,3 @@
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-
 #include "util.h"
 
 // get sockaddr, IPv4 or IPv6:

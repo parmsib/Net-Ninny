@@ -1,5 +1,5 @@
 /*
-** server.h 
+** server.h
 */
 
 #ifndef _SERVER_H_
@@ -10,11 +10,10 @@
 #include <netdb.h>
 
 #define SERVERPORT "8080"  // port proxyserver
-#define CLIENTPORT "80" // Destination port webserver
 
 #define BACKLOG 10     // how many pending connections queue will hold
 
-#define MAXDATASIZE 100
+#define MAXDATASIZE 10000
 
 
 void server_init_hints(struct addrinfo* hints);
