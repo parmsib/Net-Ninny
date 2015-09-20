@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+#define MAXDATASIZE 2000000
 
 void *get_in_addr(struct sockaddr *sa);
 
