@@ -1,16 +1,18 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "http.h"
 
 
 unsigned int http_whole_header(char* buf){
-    emptyline = strstr(buf, "\n\n");
+    char* emptyline = strstr(buf, "\n\n");
     if(emptyline == NULL)
         return 0;
-    return (unsigned int)emptyline - (unsigned int)buf + 2;
+    return (unsigned int) ( (uintptr_t)emptyline - (uintptr_t)buf + 2 );
 }
 
 int http_is_html(char* buf){
@@ -46,9 +48,9 @@ int http_msg_size(char* buf){
         printf("Error: no content length found, after whole header check\n");
         return -1;
     }
-    char* content_length = strcasestr(content_length, ":") + 2;
+    content_length = strcasestr(content_length, ":") + 2;
     int content_length_val;
-    if(sscanf("%d", &content_length_val)){
+    if(sscanf(content_length, "%d", &content_length_val)){
         perror("Failed to parse content-length value");
     }
     return content_length_val + (int)header_len;

@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 
 #include <arpa/inet.h>
 
@@ -21,6 +22,27 @@ void client_init_hints(struct addrinfo* hints){
     hints->ai_socktype = SOCK_STREAM; // TCP stream sockets
 }
 
+void extract_host_name(char* hostN, char *buf){
+    char *startHN;
+    char *endHN;
+    char playbuf[MAXDATASIZE];
+
+    if(startHN = strstr(buf, "Host: ")){
+
+        startHN = strchr(startHN,':');
+        endHN = strchr(startHN,'\n');
+
+        memcpy(hostN,startHN+2,endHN-startHN-2);
+        printf("%d",(int)strlen(hostN));
+        hostN[strlen(hostN)-1] = '\0';
+
+        printf("check\n");
+        printf("%s\n", hostN);
+    } else {
+        printf("HOST NAME NOT FOUND ***********");
+    }
+}
+
 void client_handle_request(int browser_fd){
     //entry point from server
     char buf[MAXDATASIZE];
@@ -33,7 +55,7 @@ void client_handle_request(int browser_fd){
         int res = recv(browser_fd, buf + GET_size, MAXDATASIZE-1,0);
         if(res < 0){
             perror("recv from browser failed.");
-            return -1;
+            exit(1);
         }
         GET_size += res;
         if (http_whole_header(buf))
@@ -41,37 +63,11 @@ void client_handle_request(int browser_fd){
             break;
     }
 
-    //  if((numbytes = recv(browser_fd, buf, MAXDATASIZE-1,0)) == -1)
-    //  {
-    //    perror("recv");
-    //    exit(1);
-    //  }
+    printf("---------------------------server: recieved from browser \n'%.*s'\n", GET_size, buf);
 
-    buf[numbytes] = '\0';
+    char HOST[1000];
+    extract_host_name(HOST, buf);
 
-    printf("---------------------------server: recieved from browser \n'%s'\n",buf);
-
-    char *HOST;
-    char *point;
-    char playbuf[MAXDATASIZE];
-
-    memcpy(playbuf,buf,numbytes);
-
-    if(point = strstr(playbuf, "Host:")){
-        printf("FOUND*********\n");
-        char *token = strtok(point," ");
-        token = strtok(NULL,"\n");
-        token[strlen(token)-1] ='\0';
-        HOST = token;
-    } else {
-        printf("HOST NAME NOT FOUND ***********");
-    }
-    // if (send(browser_fd, "Hello, world!", 13, 0) == -1)
-    //   perror("send");
-
-    //end of dummy code
-
-    //TODO: make "main" below into this function
     printf("Client side started\n");
 
     int hostfd;
@@ -82,7 +78,7 @@ void client_handle_request(int browser_fd){
     int rv;
     if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
         fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
-        return 1;
+        exit(1);
     }
 
     //Create socket to port and connct to host
@@ -95,13 +91,13 @@ void client_handle_request(int browser_fd){
     if (send(host_sock_fd, buf, GET_size, 0) == -1)
         perror("send");
 
+    int numbytes;
     // Recive response from host
     if((numbytes = recv(host_sock_fd, buf, MAXDATASIZE-1,0)) == -1) {
         perror("recv");
         exit(1);
     }
 
-    printf("%d",numbytes);
     buf[numbytes] = '\0';
 
     printf("-------------------------------client: recieved from host \n'%s'\n",buf);
@@ -113,8 +109,7 @@ void client_handle_request(int browser_fd){
     if (send(browser_fd, buf, sizeof buf, 0) == -1)
         perror("send");
 
-    return 0;
-
+    return;
 }
 
 int client_connect_host(struct addrinfo* hostinfo){
@@ -135,10 +130,9 @@ int client_connect_host(struct addrinfo* hostinfo){
 
         break;
     }
-
     if(p == NULL){
         fprintf(stderr, "client: failed to connect\n");
-        return 2;
+        exit(1);
     }
 
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);

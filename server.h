@@ -13,9 +13,6 @@
 
 #define BACKLOG 10     // how many pending connections queue will hold
 
-#define MAXDATASIZE 2000000
-
-
 void server_init_hints(struct addrinfo* hints);
 void server_handle_signals(void);
 void server_accept_loop(int sockfd);
