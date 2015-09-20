@@ -1,5 +1,5 @@
-#ifndef _SERVER_H_
-#define _SERVER_H_
+#ifndef _UTIL_H_
+#define _UTIL_H_
 
 #include <netdb.h>
 #include <sys/types.h>
@@ -9,4 +9,4 @@
 
 void *get_in_addr(struct sockaddr *sa);
 
-#endif 
+#endif

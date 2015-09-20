@@ -2,7 +2,7 @@
 #define _CLIENT_H_
 
 #define HOSTPORT "80" // Port to connect to
-#define MAXDATASIZE 10000
+#define MAXDATASIZE 2000000
 
 
 void client_handle_request(int client_fd);

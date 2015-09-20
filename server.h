@@ -13,7 +13,7 @@
 
 #define BACKLOG 10     // how many pending connections queue will hold
 
-#define MAXDATASIZE 10000
+#define MAXDATASIZE 2000000
 
 
 void server_init_hints(struct addrinfo* hints);
