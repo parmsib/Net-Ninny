@@ -21,14 +21,12 @@ void client_init_hints(struct addrinfo* hints){
 }
 
 int check_bad_URL(char *buf){
-    char *badword[] = {"SpongeBob","Britney Spears", "Paris Hilton", "Norrköping"};
+    char *badword[] = BADWORDS;
     int size = (sizeof badword)/(sizeof badword[0]);
-    printf("%d",size);
     int i;
     for(i = 0; i < size; i++){
-        printf("%s\n",badword[i]);
         if(strstr(buf, badword[i])){
-            printf("BAAAAAAAAAAAADDDDDDDDDBBBBOIOOUYY\n");
+            printf("****** Browser Trying to Access Bad URL ******\n");
             return 1;
         }
     }
@@ -70,10 +68,12 @@ void client_handle_request(int browser_fd){
     printf("---------------------------server: recieved from browser \n'%s'\n",buf);
 
     if(check_bad_URL(buf)){
-        char *MSG = "FYYYYYYYY!";
-        if (send(browser_fd, MSG, sizeof MSG, 0) == -1)
+
+        char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\n\r\n"; //"Accessing Bad URL!";
+        if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
             perror("send");
-    }else{
+
+    } else {
 
     char HOST[1000];
     extract_host_name(HOST, buf);
@@ -99,7 +99,7 @@ void client_handle_request(int browser_fd){
 
     //Forward HTTP to host(msg)
     printf("---------------------------client: send to host \n'%s'\n",buf);
-    if (send(host_sock_fd, buf, sizeof buf, 0) == -1)
+    if (send(host_sock_fd, buf, numbytes, 0) == -1)
         perror("send");
 
     // Recive response from host
@@ -115,7 +115,7 @@ void client_handle_request(int browser_fd){
 
     //Forward response to browser
     printf("-------------------------------client: send to browser \n'%s'\n",buf);
-    if (send(browser_fd, buf, sizeof buf, 0) == -1)
+    if (send(browser_fd, buf, numbytes, 0) == -1)
         perror("send");
 
     }
