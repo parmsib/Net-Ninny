@@ -7,12 +7,14 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 
 #include <arpa/inet.h>
 
 #include "client.h"
 
 #include "util.h"
+#include "http.h"
 
 void client_init_hints(struct addrinfo* hints){
     memset(hints, 0, sizeof hints); // make sure it is empty
@@ -56,16 +58,22 @@ void client_handle_request(int browser_fd){
 
     // initialize data buffer
     char buf[MAXDATASIZE];
-    int numbytes; // Total number of recieved bytes
 
-      // Get request from browser
-    if((numbytes = recv(browser_fd, buf, MAXDATASIZE-1,0)) == -1)
-    {
-        perror("recv");
-        exit(1);
+    fcntl(browser_fd, F_SETFL, O_NONBLOCK);
+    
+    int GET_size = 0;
+    while(1){
+        //recv whole header
+        int res = recv(browser_fd, buf + GET_size, MAXDATASIZE-1,0);
+        if(res < 0){
+            perror("recv from browser failed.");
+            exit(1);
+        }
+        GET_size += res;
+        if (http_whole_header(buf))
+            //buf contains the whole header (request)
+            break;
     }
-    // Append null character
-    buf[numbytes] = '\0';
 
     printf("---------------------------server: recieved from browser \n'%s'\n",buf);
 
@@ -99,14 +107,16 @@ void client_handle_request(int browser_fd){
 
     //Forward HTTP to host(msg)
     printf("---------------------------client: send to host \n'%s'\n",buf);
-    if (send(host_sock_fd, buf, sizeof buf, 0) == -1)
+    if (send(host_sock_fd, buf, GET_size, 0) == -1)
         perror("send");
 
+    int numbytes;
     // Recive response from host
     if((numbytes = recv(host_sock_fd, buf, MAXDATASIZE-1,0)) == -1) {
         perror("recv");
         exit(1);
     }
+
     buf[numbytes] = '\0';
 
     printf("-------------------------------client: recieved from host \n'%s'\n",buf);
@@ -120,7 +130,6 @@ void client_handle_request(int browser_fd){
 
     }
     return;
-
 }
 
 int client_connect_host(struct addrinfo* hostinfo){
