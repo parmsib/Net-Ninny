@@ -20,13 +20,16 @@ void client_init_hints(struct addrinfo* hints){
     hints->ai_socktype = SOCK_STREAM; // TCP stream sockets
 }
 
-int check_bad_URL(char *buf){
-    char *badword[] = BADWORDS;
+int check_bad_content(char *buf, int numbytes){
+    char *content;
+    strncpy(content,buf,numbytes);
+
+    char *badword[] = BADWORDS; // Defined in client.h
     int size = (sizeof badword)/(sizeof badword[0]);
     int i;
     for(i = 0; i < size; i++){
-        if(strstr(buf, badword[i])){
-            printf("****** Browser Trying to Access Bad URL ******\n");
+        if(strstr(content, badword[i])){
+            printf("****** Browser Trying to Access Bad URL/Content ******\n");
             return 1;
         }
     }
@@ -66,61 +69,64 @@ void client_handle_request(int browser_fd){
     buf[numbytes] = '\0';
 
     printf("---------------------------server: recieved from browser \n'%s'\n",buf);
-
-    if(check_bad_URL(buf)){
-
+    if(check_bad_content(buf,numbytes)){
         char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\n\r\n"; //"Accessing Bad URL!";
         if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
             perror("send");
 
     } else {
 
-    char HOST[1000];
-    extract_host_name(HOST, buf);
+        char HOST[1000];
+        extract_host_name(HOST, buf);
 
-    printf("Client side started\n");
+        printf("Client side started\n");
 
-    int hostfd;
-    struct addrinfo hints;
-    client_init_hints(&hints);
+        int hostfd;
+        struct addrinfo hints;
+        client_init_hints(&hints);
 
-    // Get address information from host
-    struct addrinfo* hostinfo;
-    int rv;
-    if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
-        fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
-        exit(1);
-    }
+        // Get address information from host
+        struct addrinfo* hostinfo;
+        int rv;
+        if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
+            fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
+            exit(1);
+        }
 
-    //Create socket to port and connct to host
-    int host_sock_fd;
-    host_sock_fd = client_connect_host(hostinfo);
-    freeaddrinfo(hostinfo);
+        //Create socket to port and connct to host
+        int host_sock_fd;
+        host_sock_fd = client_connect_host(hostinfo);
+        freeaddrinfo(hostinfo);
 
-    //Forward HTTP to host(msg)
-    printf("---------------------------client: send to host \n'%s'\n",buf);
-    if (send(host_sock_fd, buf, numbytes, 0) == -1)
-        perror("send");
+        //Forward HTTP to host(msg)
+        printf("---------------------------client: send to host \n'%s'\n",buf);
+        if (send(host_sock_fd, buf, numbytes, 0) == -1)
+            perror("send");
 
-    // Recive response from host
-    if((numbytes = recv(host_sock_fd, buf, MAXDATASIZE-1,0)) == -1) {
-        perror("recv");
-        exit(1);
-    }
-    buf[numbytes] = '\0';
+        // Recive response from host
+        if((numbytes = recv(host_sock_fd, buf, MAXDATASIZE-1, MSG_WAITALL)) == -1) { // TODO : TAR FÖR MYCKET TID med MSG_WAITALL
+            perror("recv");
+            exit(1);
+        }
+        buf[numbytes] = '\0';
 
-    printf("-------------------------------client: recieved from host \n'%s'\n",buf);
-    close(host_sock_fd);
+        printf("%d",numbytes);
+        printf("-------------------------------client: recieved from host \n'%s'\n",buf);
+        close(host_sock_fd);
 
+        if(check_bad_content(buf,numbytes)){
+            char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error2.html\r\n\r\n"; //"Accessing Bad URL!";
+            if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
+                perror("send");
+        } else {
+            // Forward response to browser
+            printf("-------------------------------client: send to browser \n'%s'\n",buf);
+            if (send(browser_fd, buf, numbytes, 0) == -1)
+                perror("send");
 
-    //Forward response to browser
-    printf("-------------------------------client: send to browser \n'%s'\n",buf);
-    if (send(browser_fd, buf, numbytes, 0) == -1)
-        perror("send");
-
+        }
     }
     return;
-
 }
 
 int client_connect_host(struct addrinfo* hostinfo){
