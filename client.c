@@ -20,6 +20,21 @@ void client_init_hints(struct addrinfo* hints){
     hints->ai_socktype = SOCK_STREAM; // TCP stream sockets
 }
 
+int check_bad_URL(char *buf){
+    char *badword[] = {"SpongeBob","Britney Spears", "Paris Hilton", "Norrköping"};
+    int size = (sizeof badword)/(sizeof badword[0]);
+    printf("%d",size);
+    int i;
+    for(i = 0; i < size; i++){
+        printf("%s\n",badword[i]);
+        if(strstr(buf, badword[i])){
+            printf("BAAAAAAAAAAAADDDDDDDDDBBBBOIOOUYY\n");
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void extract_host_name(char* hostN, char *buf){
     char *startHN;
     char *endHN;
@@ -29,13 +44,8 @@ void extract_host_name(char* hostN, char *buf){
 
         startHN = strchr(startHN,':');
         endHN = strchr(startHN,'\n');
-
         memcpy(hostN,startHN+2,endHN-startHN-2);
-        printf("%d",(int)strlen(hostN));
         hostN[strlen(hostN)-1] = '\0';
-
-        printf("check\n");
-        printf("%s\n", hostN);
     } else {
         printf("HOST NAME NOT FOUND ***********");
     }
@@ -58,6 +68,13 @@ void client_handle_request(int browser_fd){
     buf[numbytes] = '\0';
 
     printf("---------------------------server: recieved from browser \n'%s'\n",buf);
+
+    if(check_bad_URL(buf)){
+        char *MSG = "FYYYYYYYY!";
+        if (send(browser_fd, MSG, sizeof MSG, 0) == -1)
+            perror("send");
+    }else{
+
     char HOST[1000];
     extract_host_name(HOST, buf);
 
@@ -101,6 +118,7 @@ void client_handle_request(int browser_fd){
     if (send(browser_fd, buf, sizeof buf, 0) == -1)
         perror("send");
 
+    }
     return;
 
 }
