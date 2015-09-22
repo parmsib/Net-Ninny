@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include <arpa/inet.h>
 
@@ -15,6 +16,8 @@
 
 #include "util.h"
 #include "http.h"
+
+extern int errno; //error code from failed syscalls
 
 void client_init_hints(struct addrinfo* hints){
     memset(hints, 0, sizeof hints); // make sure it is empty
@@ -65,7 +68,7 @@ void client_handle_request(int browser_fd){
     while(1){
         //recv whole header
         int res = recv(browser_fd, buf + GET_size, MAXDATASIZE-1,0);
-        if(res < 0){
+        if(res < 0 && errno != EAGAIN){ //EAGAIN just means there was nothing to read
             perror("recv from browser failed.");
             exit(1);
         }
@@ -75,7 +78,7 @@ void client_handle_request(int browser_fd){
             break;
     }
 
-    printf("---------------------------server: recieved from browser \n'%s'\n",buf);
+    printf("---------------------------server: received from browser \n'%s'\n",buf);
 
     if(check_bad_URL(buf)){
         char *MSG = "FYYYYYYYY!";
@@ -83,21 +86,19 @@ void client_handle_request(int browser_fd){
             perror("send");
     }else{
 
-    char HOST[1000];
-    extract_host_name(HOST, buf);
+        char HOST[1000];
+        extract_host_name(HOST, buf);
 
-    printf("Client side started\n");
+        int hostfd;
+        struct addrinfo hints;
+        client_init_hints(&hints);
 
-    int hostfd;
-    struct addrinfo hints;
-    client_init_hints(&hints);
-
-    // Get address information from host
-    struct addrinfo* hostinfo;
-    int rv;
-    if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
-        fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
-        exit(1);
+        // Get address information from host
+        struct addrinfo* hostinfo;
+        int rv;
+        if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
+            fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
+            exit(1);
     }
 
     //Create socket to port and connct to host

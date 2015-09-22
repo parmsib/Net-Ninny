@@ -9,10 +9,12 @@
 
 
 unsigned int http_whole_header(char* buf){
-    char* emptyline = strstr(buf, "\n\n");
+    char* endstring = "\r\n\r\n";
+    char* emptyline = strstr(buf, endstring);
     if(emptyline == NULL)
         return 0;
-    return (unsigned int) ( (uintptr_t)emptyline - (uintptr_t)buf + 2 );
+    return (unsigned int) ( (uintptr_t)emptyline - (uintptr_t)buf
+            + strlen(endstring));
 }
 
 int http_is_html(char* buf){
