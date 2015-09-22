@@ -84,22 +84,39 @@ void client_handle_request(int browser_fd){
         char *MSG = "FYYYYYYYY!";
         if (send(browser_fd, MSG, sizeof MSG, 0) == -1)
             perror("send");
-    }else{
-
-        char HOST[1000];
-        extract_host_name(HOST, buf);
-
-        int hostfd;
-        struct addrinfo hints;
-        client_init_hints(&hints);
-
-        // Get address information from host
-        struct addrinfo* hostinfo;
-        int rv;
-        if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
-            fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
-            exit(1);
+        return;
     }
+    char HOST[1000];
+    extract_host_name(HOST, buf);
+
+    int hostfd;
+    struct addrinfo hints;
+    client_init_hints(&hints);
+
+    // Get address information from host
+    struct addrinfo* hostinfo;
+    int rv;
+    if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
+        fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
+        exit(1);
+    }
+//    }else{
+//
+//        char HOST[1000];
+//        extract_host_name(HOST, buf);
+//
+//        int hostfd;
+//        struct addrinfo hints;
+//        client_init_hints(&hints);
+//
+//        // Get address information from host
+//        struct addrinfo* hostinfo;
+//        int rv;
+//        if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
+//            fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
+//            exit(1);
+//        }
+//    } //TODO: strange placement of brace? Maybe should just return if naught words found? Maybe should just return if naught words found?
 
     //Create socket to port and connct to host
     int host_sock_fd;
@@ -111,23 +128,64 @@ void client_handle_request(int browser_fd){
     if (send(host_sock_fd, buf, GET_size, 0) == -1)
         perror("send");
 
-    int numbytes;
-    // Recive response from host
-    if((numbytes = recv(host_sock_fd, buf, MAXDATASIZE-1,0)) == -1) {
-        perror("recv");
-        exit(1);
+    // Receive response from host
+    memset(buf, 0, MAXDATASIZE); //not optimal, but makes the code below simpler
+    int rsp_expected_size = 0; //the expected size of the whole response
+    int rsp_is_html = 0; 
+    int rsp_buf_end = 0; //the last index of buf where data has been rcvd
+    int rsp_header_rcvd = 0; //whether the rsps header has been received fully
+    int rsp_header_len = 0;
+    int rsp_num_sent = 0; //number of sent bytes to browser
+    //when the rsp is html, the whole msg is stored in buf, before it is
+    // examined and maybe sent to the browser.
+    //when the rsp is NOT html, buf is sent and reset asap after every rcv.
+    while(1){
+        int res = recv(host_sock_fd, buf + rsp_buf_end, MAXDATASIZE-1,0);
+        if(res < 0 && errno != EAGAIN){ //EAGAIN just means there was nothing to read
+            perror("recv from browser failed.");
+            exit(1);
+        }
+        rsp_buf_end += res;
+        if(rsp_header_rcvd == 0 && (rsp_header_len = http_whole_header(buf))){
+            //this is the first time we have the whole header received
+            rsp_header_rcvd = 1;
+            rsp_expected_size = rsp_header_len + http_msg_size(buf);
+            rsp_is_html = http_is_html(buf);
+        }
+        if(!rsp_is_html){
+            //since we do not have to monitor this rsp,
+            // just send it asap
+            int res = res = send(browser_fd, buf, rsp_buf_end, 0);
+            if (res < 0){
+                perror("sending non-html response part to browser failed");
+            }
+            rsp_buf_end = 0;
+            rsp_num_sent += res;
+            if(rsp_num_sent >= rsp_expected_size)
+                //whole rsp has been received and sent
+                break;
+        }else{
+            //rsp is html. Whole rsp needs to be stored in buf.
+            //break when buf[0:rsp_end_buf] contains msg
+            if(rsp_buf_end >= rsp_expected_size)
+                break;
+        }
     }
+//    if((numbytes = recv(host_sock_fd, buf, MAXDATASIZE-1,0)) == -1) {
+//        perror("recv");
+//        exit(1);
+//    }
 
-    buf[numbytes] = '\0';
 
-    printf("-------------------------------client: recieved from host \n'%s'\n",buf);
-    close(host_sock_fd);
+    if(rsp_is_html){
+        printf("-------------------------------client: recieved from host \n'%s'\n",buf);
+        close(host_sock_fd);
 
 
-    //Forward response to browser
-    printf("-------------------------------client: send to browser \n'%s'\n",buf);
-    if (send(browser_fd, buf, sizeof buf, 0) == -1)
-        perror("send");
+        //Forward response to browser
+        printf("-------------------------------client: send to browser \n'%s'\n",buf);
+        if (send(browser_fd, buf, rsp_buf_end, 0) == -1)
+            perror("send");
 
     }
     return;
