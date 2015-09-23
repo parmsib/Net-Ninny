@@ -17,7 +17,7 @@ unsigned int http_whole_header(char* buf){
             + strlen(endstring));
 }
 
-int http_is_html(char* buf){
+int http_is_text(char* buf){
     unsigned int header_len = http_whole_header(buf);
     if(header_len < 0){
         printf("ERROR: Whole header not received in http_is_text\n");
@@ -26,36 +26,43 @@ int http_is_html(char* buf){
 
     char* content_type = strcasestr(buf, "content-type"); 
     if(content_type == NULL){
-        printf("ERROR: No content-type found in http header");
-    }
-    char* text_html_p = strcasestr(content_type, "text/html");
-    char* next_newline = strcasestr(content_type, "\n");
-    if(text_html_p == NULL)
+        //no content-type found, so we default to not-text
         return 0;
-    if(next_newline < text_html_p)
-        //newline found before "text/html", meaning the value was found somewhere else in message
+    }
+    char* text_p = strcasestr(content_type, "text");
+    char* next_newline = strcasestr(content_type, "\n");
+    if(text_p == NULL)
+        return 0;
+    if(next_newline < text_p)
+        //newline found before "text", meaning the value was found somewhere else in message
         return 0;
     return 1;
 }
 
-int http_msg_size(char* buf){
+int http_body_size(char* buf){
     unsigned int header_len = http_whole_header(buf);
-    if(header_len < 0){
+    if(header_len = 0){
         printf("ERROR: While header not received in http_msg_size\n");
         return -1;
     }
 
-    char* content_length = strcasestr(buf, "content-length");
+    char* cmp_str = "content-length";
+    char* content_length = strcasestr(buf, cmp_str);
     if(content_length == NULL){
-        printf("Error: no content length found, after whole header check\n");
-        return -1;
+//        printf("Error: no content length found, after whole header check\n");
+//        return -1;
+        //no length found, meaning there is no message body
+        printf("http_body_size returning: 0\n");
+        return 0;
     }
-    content_length = strcasestr(content_length, ":") + 2;
-    int content_length_val;
-    if(sscanf(content_length, "%d", &content_length_val)){
-        perror("Failed to parse content-length value");
+    content_length = strcasestr(content_length, ":") 
+                     + 2;
+    int content_length_val = 0;
+    if(sscanf(content_length, "%d", &content_length_val) != 1){
+        fprintf(stderr, "Failed to parse content-length value\n");
     }
-    return content_length_val + (int)header_len;
+//    printf("http_body_size returning: %d\n", content_length_val);
+    return content_length_val;
 }
 
 
