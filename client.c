@@ -39,10 +39,8 @@ int check_bad_content(char *buf, int numbytes){
 void extract_host_name(char* hostN, char *buf){
     char *startHN;
     char *endHN;
-    char playbuf[MAXDATASIZE];
 
     if(startHN = strstr(buf, "Host: ")){
-
         startHN = strchr(startHN,':');
         endHN = strchr(startHN,'\n');
         memcpy(hostN,startHN+2,endHN-startHN-2);
@@ -50,6 +48,28 @@ void extract_host_name(char* hostN, char *buf){
     } else {
         printf("HOST NAME NOT FOUND ***********");
     }
+}
+
+void change_connection_type(char *head, int *numbytes){
+    char conT[MAXDATASIZE];
+    char *SconT;
+
+    char *from = "Connection: keep-alive";
+    char *to = "Connection: close";
+
+    if(!(SconT = strstr(head,from))){
+        printf("************ No connection type in header ***********\n");
+        return;
+    }
+
+    strncpy(conT,head,SconT-head);
+    conT[SconT-head] = '\0';
+    sprintf(conT + (SconT-head), "%s%s", to, SconT+strlen(from));
+
+    strcpy(head,conT);
+    *numbytes = (int)strlen(conT);
+
+    return;
 }
 
 void client_handle_request(int browser_fd){
@@ -73,58 +93,55 @@ void client_handle_request(int browser_fd){
         char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\n\r\n"; //"Accessing Bad URL!";
         if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
             perror("send");
+        return;
+    }
 
-    } else {
+    char HOST[1000];
+    extract_host_name(HOST, buf);
+    change_connection_type(buf,&numbytes);
 
-        char HOST[1000];
-        extract_host_name(HOST, buf);
+    printf("Client side started\n");
 
-        printf("Client side started\n");
-
-        int hostfd;
-        struct addrinfo hints;
-        client_init_hints(&hints);
+    int hostfd;
+    struct addrinfo hints;
+    client_init_hints(&hints);
 
         // Get address information from host
-        struct addrinfo* hostinfo;
-        int rv;
-        if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
-            fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
-            exit(1);
-        }
+    struct addrinfo* hostinfo;
+    int rv;
+    if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
+        fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
+        exit(1);
+    }
 
         //Create socket to port and connct to host
-        int host_sock_fd;
-        host_sock_fd = client_connect_host(hostinfo);
-        freeaddrinfo(hostinfo);
+    int host_sock_fd;
+    host_sock_fd = client_connect_host(hostinfo);
+    freeaddrinfo(hostinfo);
 
         //Forward HTTP to host(msg)
-        printf("---------------------------client: send to host \n'%s'\n",buf);
-        if (send(host_sock_fd, buf, numbytes, 0) == -1)
+    printf("---------------------------client: send to host \n'%s'\n",buf);
+    if (send(host_sock_fd, buf, numbytes, 0) == -1){
+        perror("send");
+    }
+    // Recive response from host
+    if((numbytes = recv(host_sock_fd, buf, MAXDATASIZE-1, MSG_WAITALL)) == -1) { // TODO : TAR FÖR MYCKET TID med MSG_WAITALL
+        perror("recv");
+        exit(1);
+    }
+    buf[numbytes] = '\0';
+    printf("%d",numbytes);
+    printf("-------------------------------client: recieved from host \n'%s'\n",buf);
+    close(host_sock_fd);
+    if(check_bad_content(buf,numbytes)){
+        char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error2.html\r\n\r\n"; //"Accessing Bad URL!";
+        if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
             perror("send");
-
-        // Recive response from host
-        if((numbytes = recv(host_sock_fd, buf, MAXDATASIZE-1, MSG_WAITALL)) == -1) { // TODO : TAR FÖR MYCKET TID med MSG_WAITALL
-            perror("recv");
-            exit(1);
-        }
-        buf[numbytes] = '\0';
-
-        printf("%d",numbytes);
-        printf("-------------------------------client: recieved from host \n'%s'\n",buf);
-        close(host_sock_fd);
-
-        if(check_bad_content(buf,numbytes)){
-            char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error2.html\r\n\r\n"; //"Accessing Bad URL!";
-            if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
-                perror("send");
-        } else {
-            // Forward response to browser
-            printf("-------------------------------client: send to browser \n'%s'\n",buf);
-            if (send(browser_fd, buf, numbytes, 0) == -1)
-                perror("send");
-
-        }
+    } else {
+        // Forward response to browser
+        printf("-------------------------------client: send to browser \n'%s'\n",buf);
+        if (send(browser_fd, buf, numbytes, 0) == -1)
+            perror("send");
     }
     return;
 }
