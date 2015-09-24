@@ -26,26 +26,24 @@ void client_init_hints(struct addrinfo* hints){
 }
 
 // non NULL terminated strstr
-int strstr_nnt(char *shoe, int shoesize, char *pebble){
+char *strstr_nnt(char *shoe, int shoesize, char *pebble){
     int pebblesize = strlen(pebble);
     int shoepos;
     for(shoepos = 0; shoepos <= shoesize; shoepos++){
         if(!memcmp(shoe + shoepos, pebble, pebblesize)){
             printf("%s\n",pebble);
             printf("%s\n",shoe + shoepos);
-            return 1;
+            return shoe + shoepos;
         }
     }
 
-    return 0;
+    return NULL;
 
 }
 
 int check_bad_content(char *buf, int numbytes){
     char content[MAXDATASIZE];
-    printf("------------CHECK BAD CONTENT-------------\n%s\n%d\n",buf, numbytes);
     memcpy(content,buf,numbytes);
-    printf("MEMcpy DONE\n");
 
     char *badword[] = BADWORDS; // Defined in client.h
     int size = (sizeof badword)/(sizeof badword[0]);
@@ -144,13 +142,13 @@ int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int
     printf("left the receive loop \n");
     return 0;
 }
-int replace_first(char *content, char *from, char *to){
+int replace_first(char *content,int cont_nb, char *from, char *to){
 
     char temp[MAXDATASIZE];
     char *p;
 
     // Is the word even in the string
-    if(!(p = strstr(content,from))){
+    if(!(p = strstr_nnt(content,cont_nb,from))){
         return 0;
     }
 
@@ -172,7 +170,7 @@ void change_connection_type(char *head, int *numbytes){
     char *from = "Connection: keep-alive";
     char *to = "Connection: close";
 
-    if(!replace_first(head,from,to)){
+    if(!replace_first(head,*numbytes,from,to)){
         printf("********* No connection type found *****");
     }
     return;
@@ -219,10 +217,7 @@ void client_handle_request(int browser_fd){
     extract_host_name(HOST, buf);
 
     // Dont allow keep-alive
-    //change_connection_type(buf,&GET_size);
-
-    printf("Client side started\n");
-    printf("3\n");
+    change_connection_type(buf,&GET_size);
 
     int hostfd;
     struct addrinfo hints;
