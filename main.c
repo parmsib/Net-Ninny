@@ -5,9 +5,17 @@
 #include "server.h"
 
 
-int main(void){
+int main(int argc, char *argv[]){
+    SERVERPORT = "8080";
+    if(argc){
+        printf("No PortNumber selected\n******* Terminated *******\n");
+        return 0;
+    } else {
+        SERVERPORT = argv[1];
+    }
 
     // init hints for getaddrinfo
+
     struct addrinfo hints;
     server_init_hints(&hints);
 
