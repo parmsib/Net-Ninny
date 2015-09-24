@@ -200,7 +200,7 @@ void client_handle_request(int browser_fd){
     }
 
     printf("---------------------------server: received from browser \n'%s'\n",buf);
-    if(check_bad_content(buf,numbytes)){
+    if(check_bad_content(buf,GET_size)){
         char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\n\r\n"; //"Accessing Bad URL!";
         if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
             perror("send");
@@ -210,7 +210,7 @@ void client_handle_request(int browser_fd){
     extract_host_name(HOST, buf);
 
     // Dont allow keep-alive
-    //change_connection_type(buf,&numbytes);
+    //change_connection_type(buf,&GET_size);
 
     printf("Client side started\n");
 
@@ -272,7 +272,7 @@ void client_handle_request(int browser_fd){
 
         printf("-------------------------------client: recieved from host \n'%s'\n",buf);
         close(host_sock_fd);
-        if(check_bad_content(buf,numbytes)){
+        if(check_bad_content(buf,buf_len)){
             char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error2.html\r\n\r\n"; //"Accessing Bad URL!";
             if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
                 perror("send");
@@ -280,7 +280,7 @@ void client_handle_request(int browser_fd){
         }
         // Forward response to browser
         printf("-------------------------------client: send to browser \n'%s'\n",buf);
-        if (send(browser_fd, buf, numbytes, 0) == -1)
+        if (send(browser_fd, buf, buf_len, 0) == -1)
             perror("send");
 
     }
