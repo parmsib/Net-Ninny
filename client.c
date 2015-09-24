@@ -20,6 +20,23 @@ void client_init_hints(struct addrinfo* hints){
     hints->ai_socktype = SOCK_STREAM; // TCP stream sockets
 }
 
+// non NULL terminated strstr
+int strstr_nnt(char *shoe, int shoesize, char *pebble){
+    int pebblesize = strlen(pebble);
+    int shoepos;
+
+    for(shoepos = 0; shoepos <= shoesize; shoepos++){
+        if(!memcmp(shoe + shoepos, pebble, pebblesize)){
+            printf("%s\n",pebble);
+            printf("%s\n",shoe + shoepos);
+            return 1;
+        }
+    }
+
+    return 0;
+
+}
+
 int check_bad_content(char *buf, int numbytes){
     char *content;
     strncpy(content,buf,numbytes);
@@ -28,7 +45,7 @@ int check_bad_content(char *buf, int numbytes){
     int size = (sizeof badword)/(sizeof badword[0]);
     int i;
     for(i = 0; i < size; i++){
-        if(strstr(content, badword[i])){
+        if(strstr_nnt(content, numbytes, badword[i])){
             printf("****** Browser Trying to Access Bad URL/Content ******\n");
             return 1;
         }
@@ -46,8 +63,29 @@ void extract_host_name(char* hostN, char *buf){
         memcpy(hostN,startHN+2,endHN-startHN-2);
         hostN[strlen(hostN)-1] = '\0';
     } else {
-        printf("HOST NAME NOT FOUND ***********");
+        printf("******* HOST NAME NOT FOUND ***********");
     }
+}
+
+int replace_first(char *content, char *from, char *to){
+
+    char temp[MAXDATASIZE];
+    char *p;
+
+    // Is the word even in the string
+    if(!(p = strstr(content,from))){
+        return 0;
+    }
+
+    // Copy the part before the first occurence of the word
+    strncpy(temp,content,p-content);
+    temp[p-content] = '\0';
+
+    // Append the new word and the string behind the new word on temp
+    sprintf(temp + (p-content), "%s%s", to, p+strlen(from));
+
+    strcpy(content,temp);
+    return 1;
 }
 
 void change_connection_type(char *head, int *numbytes){
@@ -57,18 +95,9 @@ void change_connection_type(char *head, int *numbytes){
     char *from = "Connection: keep-alive";
     char *to = "Connection: close";
 
-    if(!(SconT = strstr(head,from))){
-        printf("************ No connection type in header ***********\n");
-        return;
+    if(!replace_first(head,from,to)){
+        printf("********* No connection type found *****");
     }
-
-    strncpy(conT,head,SconT-head);
-    conT[SconT-head] = '\0';
-    sprintf(conT + (SconT-head), "%s%s", to, SconT+strlen(from));
-
-    strcpy(head,conT);
-    *numbytes = (int)strlen(conT);
-
     return;
 }
 
@@ -98,7 +127,9 @@ void client_handle_request(int browser_fd){
 
     char HOST[1000];
     extract_host_name(HOST, buf);
-    change_connection_type(buf,&numbytes);
+
+    // Dont allow keep-alive
+    //change_connection_type(buf,&numbytes);
 
     printf("Client side started\n");
 
@@ -130,7 +161,7 @@ void client_handle_request(int browser_fd){
         exit(1);
     }
     buf[numbytes] = '\0';
-    printf("%d",numbytes);
+
     printf("-------------------------------client: recieved from host \n'%s'\n",buf);
     close(host_sock_fd);
     if(check_bad_content(buf,numbytes)){
