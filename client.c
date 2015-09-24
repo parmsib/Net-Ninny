@@ -29,7 +29,6 @@ void client_init_hints(struct addrinfo* hints){
 int strstr_nnt(char *shoe, int shoesize, char *pebble){
     int pebblesize = strlen(pebble);
     int shoepos;
-
     for(shoepos = 0; shoepos <= shoesize; shoepos++){
         if(!memcmp(shoe + shoepos, pebble, pebblesize)){
             printf("%s\n",pebble);
@@ -43,8 +42,10 @@ int strstr_nnt(char *shoe, int shoesize, char *pebble){
 }
 
 int check_bad_content(char *buf, int numbytes){
-    char *content;
-    strncpy(content,buf,numbytes);
+    char content[MAXDATASIZE];
+    printf("------------CHECK BAD CONTENT-------------\n%s\n%d\n",buf, numbytes);
+    memcpy(content,buf,numbytes);
+    printf("MEMcpy DONE\n");
 
     char *badword[] = BADWORDS; // Defined in client.h
     int size = (sizeof badword)/(sizeof badword[0]);
@@ -182,6 +183,7 @@ void client_handle_request(int browser_fd){
 
     // initialize data buffer
     char buf[MAXDATASIZE];
+    memset(buf,0,MAXDATASIZE);
 
     fcntl(browser_fd, F_SETFL, O_NONBLOCK);
 
@@ -193,19 +195,26 @@ void client_handle_request(int browser_fd){
             perror("recv from browser failed.");
             exit(1);
         }
+        if(res <= 0)
+            continue;
+
         GET_size += res;
-        if (http_whole_header(buf))
+
+        if (http_whole_header(buf)){
             //buf contains the whole header (request)
             break;
+        }
     }
 
     printf("---------------------------server: received from browser \n'%s'\n",buf);
+    buf[GET_size]='\0'; // For string handling
     if(check_bad_content(buf,GET_size)){
         char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\n\r\n"; //"Accessing Bad URL!";
         if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
             perror("send");
         return;
     }
+
     char HOST[1000];
     extract_host_name(HOST, buf);
 
@@ -213,7 +222,7 @@ void client_handle_request(int browser_fd){
     //change_connection_type(buf,&GET_size);
 
     printf("Client side started\n");
-
+    printf("3\n");
 
     int hostfd;
     struct addrinfo hints;
@@ -226,23 +235,6 @@ void client_handle_request(int browser_fd){
         fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
         exit(1);
     }
-//    }else{
-//
-//        char HOST[1000];
-//        extract_host_name(HOST, buf);
-//
-//        int hostfd;
-//        struct addrinfo hints;
-//        client_init_hints(&hints);
-//
-//        // Get address information from host
-//        struct addrinfo* hostinfo;
-//        int rv;
-//        if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
-//            fprintf(stderr, "getaddrinfo: %s\n",gai_strerror(rv));
-//            exit(1);
-//        }
-//    } //TODO: strange placement of brace? Maybe should just return if naught words found? Maybe should just return if naught words found?
 
         //Create socket to port and connct to host
     int host_sock_fd;
