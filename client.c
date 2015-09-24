@@ -25,15 +25,33 @@ void client_init_hints(struct addrinfo* hints){
     hints->ai_socktype = SOCK_STREAM; // TCP stream sockets
 }
 
-int check_bad_URL(char *buf){
-    char *badword[] = {"SpongeBob","Britney Spears", "Paris Hilton", "Norrköping"};
+// non NULL terminated strstr
+int strstr_nnt(char *shoe, int shoesize, char *pebble){
+    int pebblesize = strlen(pebble);
+    int shoepos;
+
+    for(shoepos = 0; shoepos <= shoesize; shoepos++){
+        if(!memcmp(shoe + shoepos, pebble, pebblesize)){
+            printf("%s\n",pebble);
+            printf("%s\n",shoe + shoepos);
+            return 1;
+        }
+    }
+
+    return 0;
+
+}
+
+int check_bad_content(char *buf, int numbytes){
+    char *content;
+    strncpy(content,buf,numbytes);
+
+    char *badword[] = BADWORDS; // Defined in client.h
     int size = (sizeof badword)/(sizeof badword[0]);
-    printf("%d",size);
     int i;
     for(i = 0; i < size; i++){
-        printf("%s\n",badword[i]);
-        if(strstr(buf, badword[i])){
-            printf("BAAAAAAAAAAAADDDDDDDDDBBBBOIOOUYY\n");
+        if(strstr_nnt(content, numbytes, badword[i])){
+            printf("****** Browser Trying to Access Bad URL/Content ******\n");
             return 1;
         }
     }
@@ -43,23 +61,21 @@ int check_bad_URL(char *buf){
 void extract_host_name(char* hostN, char *buf){
     char *startHN;
     char *endHN;
-    char playbuf[MAXDATASIZE];
 
     if(startHN = strstr(buf, "Host: ")){
-
         startHN = strchr(startHN,':');
         endHN = strchr(startHN,'\n');
         memcpy(hostN,startHN+2,endHN-startHN-2);
         hostN[strlen(hostN)-1] = '\0';
     } else {
-        printf("HOST NAME NOT FOUND ***********");
+        printf("******* HOST NAME NOT FOUND ***********");
     }
 }
 
 int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int* buf_len){
     memset(buf, 0, MAXDATASIZE); //not optimal, but makes the code below simpler
     int rsp_expected_size = 0; //the expected size of the whole response
-    int rsp_is_text = 0; 
+    int rsp_is_text = 0;
     int rsp_buf_end = 0; //the last index of buf where data has been rcvd
     int rsp_header_rcvd = 0; //whether the rsps header has been received fully
     int rsp_header_len = 0;
@@ -109,7 +125,7 @@ int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int
             if(rsp_num_sent >= rsp_expected_size)
                 //whole rsp has been received and sent
                 *buffered = 0;
-                break;
+            break;
         }else{
 //            printf("rsp is text \n");
             //rsp is text. Whole rsp needs to be stored in buf.
@@ -127,6 +143,39 @@ int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int
     printf("left the receive loop \n");
     return 0;
 }
+int replace_first(char *content, char *from, char *to){
+
+    char temp[MAXDATASIZE];
+    char *p;
+
+    // Is the word even in the string
+    if(!(p = strstr(content,from))){
+        return 0;
+    }
+
+    // Copy the part before the first occurence of the word
+    strncpy(temp,content,p-content);
+    temp[p-content] = '\0';
+
+    // Append the new word and the string behind the new word on temp
+    sprintf(temp + (p-content), "%s%s", to, p+strlen(from));
+
+    strcpy(content,temp);
+    return 1;
+}
+
+void change_connection_type(char *head, int *numbytes){
+    char conT[MAXDATASIZE];
+    char *SconT;
+
+    char *from = "Connection: keep-alive";
+    char *to = "Connection: close";
+
+    if(!replace_first(head,from,to)){
+        printf("********* No connection type found *****");
+    }
+    return;
+}
 
 void client_handle_request(int browser_fd){
     //entry point from server
@@ -135,7 +184,7 @@ void client_handle_request(int browser_fd){
     char buf[MAXDATASIZE];
 
     fcntl(browser_fd, F_SETFL, O_NONBLOCK);
-    
+
     int GET_size = 0;
     while(1){
         //recv whole header
@@ -151,21 +200,26 @@ void client_handle_request(int browser_fd){
     }
 
     printf("---------------------------server: received from browser \n'%s'\n",buf);
-
-    if(check_bad_URL(buf)){
-        char *MSG = "FYYYYYYYY!";
-        if (send(browser_fd, MSG, sizeof MSG, 0) == -1)
+    if(check_bad_content(buf,numbytes)){
+        char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\n\r\n"; //"Accessing Bad URL!";
+        if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
             perror("send");
         return;
     }
     char HOST[1000];
     extract_host_name(HOST, buf);
 
+    // Dont allow keep-alive
+    //change_connection_type(buf,&numbytes);
+
+    printf("Client side started\n");
+
+
     int hostfd;
     struct addrinfo hints;
     client_init_hints(&hints);
 
-    // Get address information from host
+        // Get address information from host
     struct addrinfo* hostinfo;
     int rv;
     if((rv = getaddrinfo(HOST,HOSTPORT,&hints,&hostinfo)) != 0){
@@ -190,12 +244,12 @@ void client_handle_request(int browser_fd){
 //        }
 //    } //TODO: strange placement of brace? Maybe should just return if naught words found? Maybe should just return if naught words found?
 
-    //Create socket to port and connct to host
+        //Create socket to port and connct to host
     int host_sock_fd;
     host_sock_fd = client_connect_host(hostinfo);
     freeaddrinfo(hostinfo);
 
-    //Forward HTTP to host(msg)
+        //Forward HTTP to host(msg)
     printf("---------------------------client: send to host \n'%s'\n",buf);
     if (send(host_sock_fd, buf, GET_size, 0) == -1)
         perror("send");
@@ -216,9 +270,17 @@ void client_handle_request(int browser_fd){
         close(host_sock_fd);
 
 
-        //Forward response to browser
+        printf("-------------------------------client: recieved from host \n'%s'\n",buf);
+        close(host_sock_fd);
+        if(check_bad_content(buf,numbytes)){
+            char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error2.html\r\n\r\n"; //"Accessing Bad URL!";
+            if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
+                perror("send");
+            return;
+        }
+        // Forward response to browser
         printf("-------------------------------client: send to browser \n'%s'\n",buf);
-        if (send(browser_fd, buf, buf_len, 0) == -1)
+        if (send(browser_fd, buf, numbytes, 0) == -1)
             perror("send");
 
     }
