@@ -204,12 +204,7 @@ void client_handle_request(int browser_fd){
 
     // Dont allow keep-alive
     change_connection_type(buf,&GET_size);
-<<<<<<< HEAD
 
-    printf("Client side started\n");
-    printf("3\n");
-=======
->>>>>>> f53419ff7a4fc2d5da8f076ba8ad12a20c2e13cb
 
     int hostfd;
     struct addrinfo hints;
