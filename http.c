@@ -39,9 +39,9 @@ int http_is_text(char* buf){
     return 1;
 }
 
-int http_body_size(char* buf){
+int http_content_length(char* buf){
     unsigned int header_len = http_whole_header(buf);
-    if(header_len = 0){
+    if(header_len == 0){
         printf("ERROR: While header not received in http_msg_size\n");
         return -1;
     }
@@ -63,6 +63,20 @@ int http_body_size(char* buf){
     }
 //    printf("http_body_size returning: %d\n", content_length_val);
     return content_length_val;
+}
+
+int http_no_encoding(char* buf){
+    unsigned int header_len = http_whole_header(buf);
+    if(header_len == 0){
+        printf("ERROR: Header not received in http_msg_size\n");
+        return -1;
+    }
+    char* cmp_str = "content-encoding";
+    char* content_encoding = strcasestr(buf, cmp_str);
+    if(content_encoding == NULL){
+        return 1;
+    }
+    return 0;
 }
 
 

@@ -75,16 +75,12 @@ void extract_host_name(char* hostN, char *buf){
 
 int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int* buf_len){
     memset(buf, 0, MAXDATASIZE); //not optimal, but makes the code below simpler
-    int rsp_expected_size = 0; //the expected size of the whole response
     int rsp_is_text = 0;
     int rsp_buf_end = 0; //the last index of buf where data has been rcvd
     int rsp_header_rcvd = 0; //whether the rsps header has been received fully
-    int rsp_header_len = 0;
-    int rsp_num_sent = 0; //number of sent bytes to browser
-    int rsp_body_size = 0;
-    //when the rsp is text, the whole msg is stored in buf, before it is
-    // examined and maybe sent to the browser.
-    //when the rsp is NOT text, buf is sent and reset asap after every rcv.
+    int rsp_content_length = 0;
+    int rsp_no_encoding = 0;
+    int rsp_monitor = 0;
     printf("------------------UNMONITORED receiving from host?:---------------------\n");
     while(1){
         int res = recv(host_sock_fd, buf + rsp_buf_end, MAXDATASIZE-1,0);
@@ -92,19 +88,24 @@ int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int
             perror("recv from browser failed.");
             return -1;
         }
+        if(res == 0){
+            //tcp connection closed
+            //nothing more to receive
+            break;
+        }
         rsp_buf_end += res;
-        if(rsp_header_rcvd == 0 && (rsp_header_len = http_whole_header(buf))){
+        if(rsp_header_rcvd == 0 && (http_whole_header(buf))){
             //this is the first time we have the whole header received
             rsp_header_rcvd = 1;
-            rsp_body_size = http_body_size(buf);
-            rsp_expected_size = rsp_header_len + rsp_body_size;
+            //find out if we can monitor this response
+            rsp_content_length = http_content_length(buf);
             rsp_is_text = http_is_text(buf);
-//            printf("rsp_rsp_header_len: %d\n", rsp_header_len);
-//            printf("rsp_http_body_size: %d\n", http_body_size(buf));
-//            printf("rsp_expected_size: %d\n", rsp_expected_size);
-//            printf("rsp_is_text: %d\n", rsp_is_text);
+            rsp_no_encoding = http_no_encoding(buf);
+            rsp_monitor = rsp_content_length && rsp_is_text
+                            && rsp_no_encoding;
+            *buffered = rsp_monitor;
         }
-        if(!rsp_is_text || rsp_body_size == 0){
+        if(!rsp_monitor){
 
             printf("|<");
             char* c;
@@ -122,25 +123,10 @@ int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int
                 return -1;
             }
             rsp_buf_end = 0;
-            rsp_num_sent += res;
-            if(rsp_num_sent >= rsp_expected_size)
-                //whole rsp has been received and sent
-                *buffered = 0;
-            break;
-        }else{
-//            printf("rsp is text \n");
-            //rsp is text. Whole rsp needs to be stored in buf.
-            //break when buf[0:rsp_end_buf] contains msg
-//            printf("rsp_buf_end: %d, rsp_expected_size: %d\n",
-//                    rsp_buf_end, rsp_expected_size);
-            if(rsp_buf_end >= rsp_expected_size){
-                *buffered = 1;
-                break;
-            }
         }
     }
     *buf_len = rsp_buf_end;
-    if(!rsp_is_text && rsp_body_size == 0) printf("\n");
+    if(!rsp_monitor) printf("\n");
     printf("left the receive loop \n");
     return 0;
 }
@@ -219,7 +205,7 @@ void client_handle_request(int browser_fd){
     extract_host_name(HOST, buf);
 
     // Dont allow keep-alive
-    //change_connection_type(buf,&GET_size);
+    change_connection_type(buf,&GET_size);
 
     printf("Client side started\n");
     printf("3\n");
