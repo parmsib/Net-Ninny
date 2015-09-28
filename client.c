@@ -31,8 +31,6 @@ char *strstr_nnt(char *shoe, int shoesize, char *pebble){
     int shoepos;
     for(shoepos = 0; shoepos <= shoesize; shoepos++){
         if(!memcmp(shoe + shoepos, pebble, pebblesize)){
-            printf("%s\n",pebble);
-            printf("%s\n",shoe + shoepos);
             return shoe + shoepos;
         }
     }
@@ -129,15 +127,12 @@ int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int
     return 0;
 }
 int replace_first(char *content,int cont_nb, char *from, char *to){
-
     char temp[MAXDATASIZE];
     char *p;
-
     // Is the word even in the string
     if(!(p = strstr_nnt(content,cont_nb,from))){
         return 0;
     }
-
     // Copy the part before the first occurence of the word
     strncpy(temp,content,p-content);
     temp[p-content] = '\0';
@@ -150,9 +145,6 @@ int replace_first(char *content,int cont_nb, char *from, char *to){
 }
 
 void change_connection_type(char *head, int *numbytes){
-    char conT[MAXDATASIZE];
-    char *SconT;
-
     char *from = "Connection: keep-alive";
     char *to = "Connection: close";
 
@@ -204,7 +196,6 @@ void client_handle_request(int browser_fd){
 
     // Dont allow keep-alive
     change_connection_type(buf,&GET_size);
-
 
     int hostfd;
     struct addrinfo hints;
