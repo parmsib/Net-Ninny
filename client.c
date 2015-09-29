@@ -39,15 +39,16 @@ char *strstr_nnt(char *shoe, int shoesize, char *pebble){
 
 }
 
+
 int check_bad_content(char *buf, int numbytes){
     char content[MAXDATASIZE];
     memcpy(content,buf,numbytes);
-
+    content[MAXDATASIZE] = '\0';
     char *badword[] = BADWORDS; // Defined in client.h
     int size = (sizeof badword)/(sizeof badword[0]);
     int i;
     for(i = 0; i < size; i++){
-        if(strstr_nnt(content, numbytes, badword[i])){
+        if(strcasestr(content, badword[i])){
             printf("****** Browser Trying to Access Bad URL/Content ******\n");
             return 1;
         }
