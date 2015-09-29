@@ -39,7 +39,6 @@ char *strstr_nnt(char *shoe, int shoesize, char *pebble){
 
 }
 
-
 int check_bad_content(char *buf, int numbytes){
     char content[MAXDATASIZE];
     memcpy(content,buf,numbytes);
@@ -130,12 +129,16 @@ int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int
 int replace_first(char *content,int cont_nb, char *from, char *to){
     char temp[MAXDATASIZE];
     char *p;
+    content[MAXDATASIZE]='\0';
     // Is the word even in the string
-    if(!(p = strstr_nnt(content,cont_nb,from))){
+    if(!(p = strcasestr(content,from))){
         return 0;
     }
+    printf("%s\n", p);
+    printf("1\n");
     // Copy the part before the first occurence of the word
     strncpy(temp,content,p-content);
+    printf("2\n");
     temp[p-content] = '\0';
 
     // Append the new word and the string behind the new word on temp

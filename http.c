@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -24,7 +24,7 @@ int http_is_text(char* buf){
         return -1;
     }
 
-    char* content_type = strcasestr(buf, "content-type"); 
+    char* content_type = strcasestr(buf, "content-type");
     if(content_type == NULL){
         //no content-type found, so we default to not-text
         return 0;
@@ -55,7 +55,7 @@ int http_content_length(char* buf){
         printf("http_body_size returning: 0\n");
         return 0;
     }
-    content_length = strcasestr(content_length, ":") 
+    content_length = strcasestr(content_length, ":")
                      + 2;
     int content_length_val = 0;
     if(sscanf(content_length, "%d", &content_length_val) != 1){
