@@ -102,18 +102,14 @@ int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int
             *buffered = rsp_monitor;
         }
         if(!rsp_monitor){
-
-            printf("|<");
             char* c;
             for(c = buf + rsp_buf_end - res; c < buf + rsp_buf_end; c++)
                 printf("%c", *c);
             printf("|%s", buf + rsp_buf_end);
-            printf(">|");
-
             printf("rsp does NOT need to be monitored\n");
             //since we do not have to monitor this rsp,
             // just send it asap
-            int res = res = send(browser_fd, buf, rsp_buf_end, 0);
+            int res = send(browser_fd, buf, rsp_buf_end, 0);
             if (res < 0){
                 perror("sending non-monitored response part to browser failed");
                 return -1;
@@ -134,11 +130,8 @@ int replace_first(char *content,int cont_nb, char *from, char *to){
     if(!(p = strcasestr(content,from))){
         return 0;
     }
-    printf("%s\n", p);
-    printf("1\n");
     // Copy the part before the first occurence of the word
     strncpy(temp,content,p-content);
-    printf("2\n");
     temp[p-content] = '\0';
 
     // Append the new word and the string behind the new word on temp
@@ -197,6 +190,13 @@ void client_handle_request(int browser_fd){
 
     char HOST[1000];
     extract_host_name(HOST, buf);
+
+    if (strstr(HOST,":"))
+    {
+        printf("Only standard \'HTTP port 80\' traffic supported by proxy\n");
+        printf("Tried to access \'%s\'\n", HOST);
+        return;
+    }
 
     // Dont allow keep-alive
     change_connection_type(buf,&GET_size);
