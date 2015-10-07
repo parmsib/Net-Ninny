@@ -46,7 +46,7 @@ int http_content_length(char* buf){
         return -1;
     }
 
-    char* cmp_str = "content-length";
+    char* cmp_str = "content-length:";
     char* content_length = strcasestr(buf, cmp_str);
     if(content_length == NULL){
 //        printf("Error: no content length found, after whole header check\n");
