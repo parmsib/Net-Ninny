@@ -79,6 +79,7 @@ int host_receive(int host_sock_fd, int browser_fd, char* buf, int* buffered, int
     int rsp_monitor = 0;
     printf("------------------UNMONITORED receiving from host?:---------------------\n");
     while(1){
+        // Recieve from host
         int res = recv(host_sock_fd, buf + rsp_buf_end, MAXDATASIZE-1,0);
         if(res < 0 && errno != EAGAIN){ //EAGAIN just means there was nothing to read
             perror("recv from browser failed.");
@@ -162,6 +163,11 @@ void client_handle_request(int browser_fd){
 
     int GET_size = 0;
     while(1){
+
+/*
+******************** RECIEVE HEADER FROM BROWSER ******************************
+*/
+
         //recv whole header
         int res = recv(browser_fd, buf + GET_size, MAXDATASIZE-1,0);
         if(res < 0 && errno != EAGAIN){ //EAGAIN just means there was nothing to read
@@ -188,6 +194,9 @@ void client_handle_request(int browser_fd){
         return;
     }
 
+/*
+*********************** SET UP CONNECTION WITH HOST ********************
+*/
     char HOST[1000];
     extract_host_name(HOST, buf);
 
@@ -218,12 +227,17 @@ void client_handle_request(int browser_fd){
     host_sock_fd = client_connect_host(hostinfo);
     freeaddrinfo(hostinfo);
 
-        //Forward HTTP to host(msg)
+/*
+**************************** Forward HTTP to host(msg) *******************
+*/
     printf("---------------------------client: send to host \n'%s'\n",buf);
     if (send(host_sock_fd, buf, GET_size, 0) == -1)
         perror("send");
 
-    // Receive response from host
+/*
+******************** Receive response from host ****************
+*/
+
     int buffered = 0; //set to true if rsp should be monitored
                       //if not set, rsp has already been sent
     int buf_len = 0;
@@ -233,21 +247,24 @@ void client_handle_request(int browser_fd){
 //        return -1;
     }
 
+/*
+******************** MONITOR RECIEVED CONTENT *****************
+*/
+
     if(buffered){
         //TODO: monitor
         printf("-------------------------------client: MONITORED recieved from host \n'%s'\n",buf);
         close(host_sock_fd);
 
-
-        printf("-------------------------------client: recieved from host \n'%s'\n",buf);
-        close(host_sock_fd);
         if(check_bad_content(buf,buf_len)){
             char *MSG = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error2.html\r\n\r\n"; //"Accessing Bad URL!";
             if (send(browser_fd, MSG, strlen(MSG), 0) == -1)
                 perror("send");
             return;
         }
-        // Forward response to browser
+/*
+*************** Forward response to browser *********************
+*/
         printf("-------------------------------client: send to browser \n'%s'\n",buf);
         if (send(browser_fd, buf, buf_len, 0) == -1)
             perror("send");

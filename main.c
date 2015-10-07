@@ -7,8 +7,7 @@
 int main(int argc, char *argv[]){
     SERVERPORT = "8080";
     if(argc < 2){
-        printf("No PortNumber selected\n******* Terminated *******\n");
-        return 0;
+        printf("No PortNumber selected\n******* Assuming standard 8080 *******\n");
     } else {
         SERVERPORT = argv[1];
     }
